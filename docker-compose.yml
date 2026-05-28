@@ -1,0 +1,113 @@
+# ============================================
+# EnglishStation - Docker Compose
+# ============================================
+# Orchestrates all three services:
+# 1. frontend  - React app served by Nginx (port 80)
+# 2. backend   - Express API on Bun runtime (port 3001)
+# 3. whisper   - Python FastAPI + faster-whisper (port 8000)
+#
+# Network: All services communicate via 'english-station-network'
+# The frontend proxies /api/* to the backend via Nginx.
+# The backend forwards audio files to the whisper service.
+#
+# Usage:
+#   docker-compose up --build        # Build and start all services
+#   docker-compose up -d             # Start in background
+#   docker-compose down              # Stop all services
+#   docker-compose logs -f whisper   # Follow whisper service logs
+# ============================================
+
+services:
+  # ---- Frontend (React + Nginx) ----
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: es-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - english-station-network
+    restart: unless-stopped
+
+  # ---- Backend (Express + Bun) ----
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: es-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - WHISPER_SERVICE_URL=http://whisper:8000
+      - MAX_FILE_SIZE_MB=10
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+      - UPLOAD_DIR=./uploads
+      - RATE_LIMIT_WINDOW_MS=60000
+      - RATE_LIMIT_MAX_REQUESTS=30
+      - LOG_LEVEL=combined
+    depends_on:
+      whisper:
+        condition: service_healthy
+    volumes:
+      - backend-uploads:/app/uploads
+    networks:
+      - english-station-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # ---- Whisper Service (Python + FastAPI) ----
+  whisper:
+    build:
+      context: ./whisper-service
+      dockerfile: Dockerfile
+    container_name: es-whisper
+    ports:
+      - "8000:8000"
+    environment:
+      - WHISPER_MODEL_SIZE=base
+      - WHISPER_DEVICE=cpu
+      - WHISPER_COMPUTE_TYPE=int8
+      - WHISPER_HOST=0.0.0.0
+      - WHISPER_PORT=8000
+      - MAX_AUDIO_DURATION=120
+      - MAX_YOUTUBE_DURATION=600
+      - LOG_LEVEL=info
+    volumes:
+      - whisper-models:/home/whisperuser/.cache/huggingface
+    networks:
+      - english-station-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    # Allocate more memory for Whisper model
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+# ---- Shared Network ----
+networks:
+  english-station-network:
+    driver: bridge
+
+# ---- Persistent Volumes ----
+volumes:
+  backend-uploads:
+    driver: local
+  whisper-models:
+    driver: local

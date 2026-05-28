@@ -1,0 +1,157 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #0a0a14;
+}
+
+.app__main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.app__container {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ---- Intro ---- */
+.app__intro {
+  text-align: center;
+  padding: 0.5rem 0 0.5rem;
+}
+
+.app__intro-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #f0f0ff;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #f0f0ff 30%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.app__intro-desc {
+  font-size: 0.95rem;
+  color: rgba(160, 160, 200, 0.7);
+  margin: 0;
+  line-height: 1.6;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+/* ---- Tabs ---- */
+.app__tabs {
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  padding: 0.3rem;
+}
+
+.app__tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: rgba(160, 160, 200, 0.5);
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.app__tab:hover {
+  color: rgba(200, 200, 230, 0.8);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.app__tab--active {
+  background: rgba(167, 139, 250, 0.12);
+  color: #c4b5fd;
+  font-weight: 600;
+  box-shadow: 0 1px 8px rgba(167, 139, 250, 0.1);
+}
+
+/* ---- Tips ---- */
+.app__tips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.app__tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+}
+
+.app__tip-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.app__tip-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(200, 200, 230, 0.8);
+  margin: 0 0 0.25rem;
+}
+
+.app__tip-text {
+  font-size: 0.8rem;
+  color: rgba(160, 160, 200, 0.6);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ---- Footer ---- */
+.app__footer {
+  padding: 1.5rem;
+  text-align: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.app__footer-text {
+  font-size: 0.75rem;
+  color: rgba(160, 160, 200, 0.35);
+  margin: 0;
+}
+
+.app__footer-text strong {
+  color: rgba(160, 160, 200, 0.5);
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .app__main {
+    padding: 1.5rem 1rem 2rem;
+  }
+
+  .app__intro-title {
+    font-size: 1.3rem;
+  }
+
+  .app__intro-desc {
+    font-size: 0.85rem;
+  }
+}
