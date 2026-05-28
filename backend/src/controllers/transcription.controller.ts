@@ -30,17 +30,19 @@ const log = new Logger('TranscriptionController');
 export const transcribeAudio = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const file = req.file;
+    const { targetLang } = req.body;
 
     if (!file) {
       throw AppError.badRequest('No audio file provided');
     }
 
-    log.info(`Processing transcription request: ${file.originalname} (${(file.size / 1024).toFixed(1)}KB)`);
+    log.info(`Processing transcription request: ${file.originalname} (${(file.size / 1024).toFixed(1)}KB), targetLang: ${targetLang || 'none'}`);
 
     // Delegate to whisper service
     const result = await whisperService.transcribeAudio(
       file.path,
       file.originalname,
+      targetLang,
     );
 
     log.info(`Transcription successful: "${result.transcript.substring(0, 50)}..."`);
@@ -77,7 +79,7 @@ export const healthCheck = asyncHandler(
  */
 export const youtubeTranscribe = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
-    const { url } = req.body;
+    const { url, targetLang } = req.body;
 
     if (!url || typeof url !== 'string') {
       throw AppError.badRequest('YouTube URL is required');
@@ -93,10 +95,10 @@ export const youtubeTranscribe = asyncHandler(
       );
     }
 
-    log.info(`Processing YouTube transcription request: ${url}`);
+    log.info(`Processing YouTube transcription request: ${url}, targetLang: ${targetLang || 'none'}`);
 
     // Delegate to whisper service
-    const result = await whisperService.transcribeYouTube(url.trim());
+    const result = await whisperService.transcribeYouTube(url.trim(), targetLang);
 
     log.info(
       `YouTube transcription successful: "${result.transcript.substring(0, 50)}..."`,

@@ -18,8 +18,9 @@ import path from 'path';
 import { config } from '../config';
 import { AppError } from '../utils/AppError';
 import { Logger } from '../utils/logger';
-import type { WhisperTranscriptionResult, TranscriptionResponse } from '../types';
+import type { WhisperTranscriptionResult, TranscriptionResponse, YouTubeMetadata } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { translateSegments, translateText } from './translation.service';
 
 const log = new Logger('WhisperService');
 
@@ -38,8 +39,9 @@ const whisperClient = axios.create({
 export async function transcribeAudio(
   filePath: string,
   originalName: string,
+  targetLang?: string,
 ): Promise<TranscriptionResponse> {
-  log.info(`Starting transcription for: ${originalName}`);
+  log.info(`Starting transcription for: ${originalName} (Translation: ${targetLang || 'none'})`);
 
   // Verify file exists before sending
   if (!fs.existsSync(filePath)) {
@@ -70,18 +72,32 @@ export async function transcribeAudio(
     const result = response.data;
     log.info(`Transcription completed. Language: ${result.language}, Duration: ${result.duration}s`);
 
+    // Perform translation if requested
+    let translatedTranscript: string | undefined;
+    let translatedTexts: string[] = [];
+
+    if (targetLang && targetLang !== 'none') {
+      log.info(`Translating transcript to ${targetLang}`);
+      [translatedTranscript, translatedTexts] = await Promise.all([
+        translateText(result.text, targetLang),
+        translateSegments(result.segments, targetLang)
+      ]);
+    }
+
     // Map Whisper response to our frontend-friendly format
     const transcription: TranscriptionResponse = {
       id: uuidv4(),
       transcript: result.text.trim(),
+      translatedTranscript,
       language: result.language,
       confidence: result.language_probability,
       duration: result.duration,
-      segments: result.segments.map((seg) => ({
+      segments: result.segments.map((seg, idx) => ({
         id: seg.id,
         start: seg.start,
         end: seg.end,
         text: seg.text.trim(),
+        translatedText: translatedTexts[idx] || undefined,
       })),
       createdAt: new Date().toISOString(),
     };
@@ -189,8 +205,9 @@ function getMimeType(filePath: string): string {
  */
 export async function transcribeYouTube(
   url: string,
+  targetLang?: string,
 ): Promise<TranscriptionResponse> {
-  log.info(`Starting YouTube transcription for: ${url}`);
+  log.info(`Starting YouTube transcription for: ${url} (Translation: ${targetLang || 'none'})`);
 
   try {
     const response = await whisperClient.post<WhisperTranscriptionResult & { youtube?: YouTubeMetadata }>(
@@ -205,17 +222,31 @@ export async function transcribeYouTube(
     const result = response.data;
     log.info(`YouTube transcription completed. Language: ${result.language}, Duration: ${result.duration}s`);
 
+    // Perform translation if requested
+    let translatedTranscript: string | undefined;
+    let translatedTexts: string[] = [];
+
+    if (targetLang && targetLang !== 'none') {
+      log.info(`Translating YouTube transcript to ${targetLang}`);
+      [translatedTranscript, translatedTexts] = await Promise.all([
+        translateText(result.text, targetLang),
+        translateSegments(result.segments, targetLang)
+      ]);
+    }
+
     const transcription: TranscriptionResponse = {
       id: uuidv4(),
       transcript: result.text.trim(),
+      translatedTranscript,
       language: result.language,
       confidence: result.language_probability,
       duration: result.duration,
-      segments: result.segments.map((seg) => ({
+      segments: result.segments.map((seg, idx) => ({
         id: seg.id,
         start: seg.start,
         end: seg.end,
         text: seg.text.trim(),
+        translatedText: translatedTexts[idx] || undefined,
       })),
       createdAt: new Date().toISOString(),
       youtube: result.youtube,

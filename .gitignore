@@ -46,3 +46,7 @@ coverage/
 # Temp files
 tmp/
 temp/
+
+# Documentation
+whisper.md
+

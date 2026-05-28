@@ -17,6 +17,7 @@ import { YouTubeTranscriber } from './components/YouTubeTranscriber';
 import { TranscriptDisplay } from './components/TranscriptDisplay';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { ErrorAlert } from './components/ErrorAlert';
+import { LanguageSelector } from './components/LanguageSelector';
 import { useTranscription } from './hooks/useTranscription';
 import { useYouTubeTranscription } from './hooks/useYouTubeTranscription';
 import './App.css';
@@ -25,6 +26,7 @@ type InputMode = 'mic' | 'youtube';
 
 function App() {
   const [activeMode, setActiveMode] = useState<InputMode>('mic');
+  const [targetLang, setTargetLang] = useState<string>('none');
 
   const micTranscription = useTranscription();
   const ytTranscription = useYouTubeTranscription();
@@ -35,12 +37,12 @@ function App() {
 
   /** Called when user clicks "Transcribe" after recording */
   const handleRecordingComplete = async (blob: Blob) => {
-    await micTranscription.transcribe(blob);
+    await micTranscription.transcribe(blob, targetLang);
   };
 
   /** Called when user submits a YouTube URL */
   const handleYouTubeTranscribe = async (url: string) => {
-    await ytTranscription.transcribe(url);
+    await ytTranscription.transcribe(url, targetLang);
   };
 
   /** Reset to initial state for a new recording */
@@ -110,6 +112,14 @@ function App() {
                 YouTube
               </button>
             </div>
+          )}
+
+          {/* Language Selector */}
+          {!result && !isLoading && (
+             <LanguageSelector 
+               value={targetLang} 
+               onChange={setTargetLang} 
+             />
           )}
 
           {/* Mic Recording Mode */}

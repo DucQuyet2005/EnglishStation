@@ -32,10 +32,14 @@ const apiClient = axios.create({
 export async function transcribeAudio(
   audioBlob: Blob,
   filename: string = 'recording.webm',
+  targetLang?: string,
   onProgress?: (progress: number) => void,
 ): Promise<TranscriptionResult> {
   const formData = new FormData();
   formData.append('audio', audioBlob, filename);
+  if (targetLang) {
+    formData.append('targetLang', targetLang);
+  }
 
   try {
     const response = await apiClient.post<ApiResponse<TranscriptionResult>>(
@@ -115,11 +119,12 @@ function parseApiError(error: unknown): Error {
  */
 export async function transcribeYouTube(
   url: string,
+  targetLang?: string,
 ): Promise<TranscriptionResult> {
   try {
     const response = await apiClient.post<ApiResponse<TranscriptionResult>>(
       '/youtube-transcribe',
-      { url },
+      { url, targetLang },
       {
         timeout: 300_000, // 5 minutes — download + transcription
       },
