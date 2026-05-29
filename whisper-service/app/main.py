@@ -207,14 +207,14 @@ class YouTubeTranscribeRequest(BaseModel):
 @app.post("/transcribe_youtube")
 async def transcribe_youtube(request: YouTubeTranscribeRequest):
     """
-    Download audio from a YouTube video and transcribe it.
+    Stream audio directly from a YouTube video and transcribe it.
+    No files are downloaded to disk — zero disk usage.
 
     Flow:
     1. Validate YouTube URL format
-    2. Download audio using yt-dlp
-    3. Transcribe using the loaded Whisper model
-    4. Clean up temp audio file
-    5. Return transcription result with video metadata
+    2. Extract direct audio stream URL via yt-dlp (no download)
+    3. Pass stream URL to Whisper — FFmpeg reads it on-the-fly
+    4. Return transcription result with video metadata
 
     Args:
         request: JSON body with "url" field containing YouTube URL
@@ -224,7 +224,7 @@ async def transcribe_youtube(request: YouTubeTranscribeRequest):
         duration, segments, and video metadata
     """
     url = request.url.strip()
-    logger.info(f"🎬 YouTube transcription request: {url}")
+    logger.info(f"🎬 YouTube stream transcription request: {url}")
 
     # Step 1: Validate URL format
     if not youtube_downloader.validate_url(url):
@@ -234,18 +234,20 @@ async def transcribe_youtube(request: YouTubeTranscribeRequest):
                    "(e.g., https://youtube.com/watch?v=... or https://youtu.be/...)"
         )
 
-    audio_path = None
     try:
-        # Step 2: Download audio from YouTube
-        audio_path, video_info = youtube_downloader.download_audio(url)
+        # Step 2: Extract direct audio stream URL (no file download)
+        # yt-dlp resolves the CDN URL; nothing is written to disk
+        stream_url, video_info = youtube_downloader.get_stream_info(url)
 
-        # Step 3: Transcribe with Whisper
+        # Step 3: Transcribe by passing the stream URL directly to Whisper
+        # faster-whisper uses FFmpeg internally, which can read from URLs
+        logger.info("🎙️ Starting transcription from audio stream (no disk write)...")
         start_time = time.time()
-        result = whisper_service.transcribe(audio_path)
+        result = whisper_service.transcribe(stream_url)
         elapsed = time.time() - start_time
 
         logger.info(
-            f"✅ YouTube transcription completed in {elapsed:.2f}s | "
+            f"✅ YouTube stream transcription completed in {elapsed:.2f}s | "
             f"Video: \"{video_info['title']}\""
         )
 
@@ -260,7 +262,7 @@ async def transcribe_youtube(request: YouTubeTranscribeRequest):
         return result
 
     except YouTubeDownloadError as e:
-        logger.error(f"YouTube download failed: {e}")
+        logger.error(f"YouTube stream extraction failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
@@ -273,10 +275,7 @@ async def transcribe_youtube(request: YouTubeTranscribeRequest):
             status_code=500,
             detail=f"YouTube transcription failed: {str(e)}",
         )
-    finally:
-        # Step 4: Always clean up temp audio file
-        if audio_path:
-            youtube_downloader.cleanup(audio_path)
+    # No finally/cleanup needed — no temp files were created
 
 
 @app.get("/health")
