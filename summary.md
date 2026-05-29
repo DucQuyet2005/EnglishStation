@@ -136,9 +136,15 @@ Yêu cầu Python >= 3.10 và đã cài đặt `ffmpeg` trên máy.
 cd whisper-service
 python -m venv venv
 venv\Scripts\activate  # Windows (macOS/Linux: source venv/bin/activate)
-pip install -r requirements.txt
+pip install -r requirements.txt #Tu lan chay thu 2 khong can chay doan nay
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+Tu lan chay thu 2 chi can chay doan nay:
+
+cd whisper-service
+venv\Scripts\activate
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+
 
 #### Bước 2: Khởi chạy Express Backend (Bun)
 Yêu cầu đã cài đặt Bun.
@@ -179,3 +185,18 @@ Truy cập giao diện lập trình tại: [http://localhost:5173](http://localh
 - **Phase 2: Chấm điểm phát âm (Pronunciation Scoring)**: Phân tích âm thanh thu từ mic so sánh với văn bản chuẩn để chấm điểm phát âm chính xác tới từng từ và âm tiết (phoneme level).
 - **Phase 3: AI Tutor (Gia sư AI)**: Sử dụng các mô hình ngôn ngữ lớn (LLM như Llama hoặc GPT) để trò chuyện trực tiếp bằng giọng nói với người học.
 - **Phase 4: Streaming STT (Nhận diện thời gian thực)**: Thay vì tải lên cả file dài, hệ thống sẽ sử dụng WebSockets để nhận diện giọng nói ngay khi người dùng đang nói.
+
+## 7. Lưu ý về việc local
+Chỉ khởi động Whisper bằng Docker:
+bash
+docker-compose up -d whisper
+Khởi chạy Backend trên Windows: Mở một terminal mới:
+bash
+cd backend
+bun install     # Cài thư viện
+bun run dev     # Chạy dev server (Hot reload)
+Khởi chạy Frontend trên Windows: Mở một terminal mới:
+bash
+cd frontend
+npm install     # Cài thư viện
+npm run dev     # Chạy Vite dev server (Hot reload)

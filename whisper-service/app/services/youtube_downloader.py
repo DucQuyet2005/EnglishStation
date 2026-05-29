@@ -157,6 +157,8 @@ class YouTubeDownloader:
                     "preferredquality": "192",
                 }
             ],
+            # This line can be deleted after setup ---chu y duong dan den ffmpeg tren may cua ban
+            "ffmpeg_location": r"C:\Users\Quyet\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-essentials_build\bin",
             "quiet": True,
             "no_warnings": True,
             "noplaylist": True,  # Don't download playlists
