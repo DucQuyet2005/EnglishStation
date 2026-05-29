@@ -128,40 +128,70 @@ Quá trình xây dựng hệ thống từ đầu được chia thành các giai 
 
 ---
 
-### Cách 2: Khởi chạy Thủ công từng phần (Dành cho Lập trình viên)
+### Cách 2: Khởi chạy Thủ công từng phần trên Windows (Dành cho Lập trình viên)
 
-#### Bước 1: Khởi chạy Whisper Service (Python)
-Yêu cầu Python >= 3.10 và đã cài đặt `ffmpeg` trên máy.
-```bash
+Mở **3 Terminal riêng biệt**, mỗi terminal chạy một dịch vụ.
+
+---
+
+#### 🐍 Terminal 1 — Whisper Service (Python FastAPI)
+
+**Lần đầu tiên** (cần tạo môi trường ảo và cài thư viện):
+```powershell
 cd whisper-service
 python -m venv venv
-venv\Scripts\activate  # Windows (macOS/Linux: source venv/bin/activate)
-pip install -r requirements.txt #Tu lan chay thu 2 khong can chay doan nay
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# Cài đặt dependencies sử dụng pip trực tiếp từ thư mục venv
+.\venv\Scripts\pip install -r requirements.txt
+# Chạy ứng dụng thông qua python.exe trong venv
+.\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-Tu lan chay thu 2 chi can chay doan nay:
 
+**Từ lần thứ 2 trở đi** (môi trường ảo đã có, chỉ cần chạy trực tiếp):
+```powershell
 cd whisper-service
-venv\Scripts\activate
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+# Chạy ứng dụng thông qua python.exe trong venv (không cần kích hoạt nếu PowerShell chặn script)
+.\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
+> ⚠️ **Lưu ý quan trọng**: Luôn dùng `python -m uvicorn` (không phải `uvicorn` trực tiếp) trên Windows để tránh lỗi `command not found`. Dịch vụ sẵn sàng khi log hiển thị `Application startup complete`.
 
-#### Bước 2: Khởi chạy Express Backend (Bun)
-Yêu cầu đã cài đặt Bun.
-```bash
+---
+
+#### 🟢 Terminal 2 — Backend API (Express + Bun)
+
+**Lần đầu tiên** (cần cài thư viện):
+```powershell
 cd backend
 bun install
 bun run dev
 ```
 
-#### Bước 3: Khởi chạy Frontend (React + Vite)
-Yêu cầu đã cài đặt Node.js và npm.
-```bash
-cd frontend
-npm install
-npm run dev
+**Từ lần thứ 2 trở đi**:
+```powershell
+cd backend
+bun run dev
 ```
-Truy cập giao diện lập trình tại: [http://localhost:5173](http://localhost:5173).
+
+> Backend sẵn sàng khi log hiển thị `Server running on port 3001`.
+
+---
+
+#### ⚛️ Terminal 3 — Frontend (React + Vite)
+
+**Lần đầu tiên** (cần cài thư viện):
+```powershell
+cd frontend
+bun install
+bun run dev
+```
+
+**Từ lần thứ 2 trở đi**:
+```powershell
+cd frontend
+bun run dev
+```
+
+> Truy cập giao diện tại: **[http://localhost:5173](http://localhost:5173)**
 
 ---
 
@@ -186,17 +216,21 @@ Truy cập giao diện lập trình tại: [http://localhost:5173](http://localh
 - **Phase 3: AI Tutor (Gia sư AI)**: Sử dụng các mô hình ngôn ngữ lớn (LLM như Llama hoặc GPT) để trò chuyện trực tiếp bằng giọng nói với người học.
 - **Phase 4: Streaming STT (Nhận diện thời gian thực)**: Thay vì tải lên cả file dài, hệ thống sẽ sử dụng WebSockets để nhận diện giọng nói ngay khi người dùng đang nói.
 
-## 7. Lưu ý về việc local
-Chỉ khởi động Whisper bằng Docker:
-bash
-docker-compose up -d whisper
-Khởi chạy Backend trên Windows: Mở một terminal mới:
-bash
-cd backend
-bun install     # Cài thư viện
-bun run dev     # Chạy dev server (Hot reload)
-Khởi chạy Frontend trên Windows: Mở một terminal mới:
-bash
-cd frontend
-npm install     # Cài thư viện
-npm run dev     # Chạy Vite dev server (Hot reload)
+## 7. Tổng Hợp Lệnh Chạy Nhanh (Từ lần 2 trở đi)
+
+Sau khi đã thiết lập môi trường ảo Python và các thư viện, mỗi lần khởi động dự án chỉ cần mở 3 Terminal riêng biệt:
+
+| Terminal / Service | Lệnh chạy (Windows PowerShell) | Cổng |
+|---|---|---|
+| **Terminal 1** (Whisper) | `cd whisper-service; .\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload` | 8000 |
+| **Terminal 2** (Backend) | `cd backend; bun run dev` | 3001 |
+| **Terminal 3** (Frontend) | `cd frontend; bun run dev` | 5173 |
+
+> [!TIP]
+> Do Windows PowerShell không hỗ trợ cú pháp `&&` như Bash, ta sử dụng dấu `;` để phân tách lệnh.
+> Nếu muốn chạy nhanh bằng command prompt (`cmd`), bạn có thể đổi dấu `;` thành `&`.
+
+**Kiểm tra dịch vụ đang chạy:**
+- Whisper API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Backend Health: [http://localhost:3001/api/health](http://localhost:3001/api/health)
+- Frontend App: [http://localhost:5173](http://localhost:5173)

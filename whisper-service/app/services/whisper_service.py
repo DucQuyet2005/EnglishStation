@@ -102,11 +102,20 @@ class WhisperService:
         if not self._model:
             raise RuntimeError("Whisper model is not loaded")
 
-        file_path = Path(audio_path)
-        if not file_path.exists():
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+        # For HTTP/HTTPS URLs (e.g. YouTube audio streams), skip the file-existence
+        # check — Path.exists() always returns False for URLs.
+        # Only validate existence for local file paths.
+        is_url = audio_path.startswith("http://") or audio_path.startswith("https://")
 
-        logger.info(f"Starting transcription: {file_path.name}")
+        if not is_url:
+            file_path = Path(audio_path)
+            if not file_path.exists():
+                raise FileNotFoundError(f"Audio file not found: {audio_path}")
+            log_name = file_path.name
+        else:
+            log_name = audio_path[:80] + "..." if len(audio_path) > 80 else audio_path
+
+        logger.info(f"Starting transcription: {log_name}")
         start_time = time.time()
 
         # Perform transcription

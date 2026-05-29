@@ -1,15 +1,15 @@
-# 🗺️ HƯỚNG DẪN TRIỂN KHAI HỆ THỐNG CƠ SỞ DỮ LIỆU & TÍNH NĂNG ÔN TẬP TỪ VỰNG (SPACED REPETITION)
+# 🗺️ HƯỚNG DẪN TRIỂN KHAI HỆ THỐNG CƠ SỞ DỮ LIỆU MONGODB & TÍNH NĂNG ÔN TẬP TỪ VỰNG (SPACED REPETITION)
 
-Tài liệu này vạch ra kiến trúc, thiết kế cơ sở dữ liệu và lộ trình phát triển chi tiết để nâng cấp dự án **EnglishStation** từ một ứng dụng in-memory đơn giản thành một sản phẩm hoàn chỉnh có cơ chế xác thực người dùng, lưu trữ lịch sử, quản lý sổ tay từ vựng và thuật toán ôn tập thông minh (Spaced Repetition).
+Tài liệu này vạch ra kiến trúc, thiết kế cơ sở dữ liệu NoSQL (MongoDB) và lộ trình phát triển chi tiết để nâng cấp dự án **EnglishStation** từ một ứng dụng in-memory đơn giản thành một sản phẩm hoàn chỉnh có cơ chế xác thực người dùng, lưu trữ lịch sử dịch thuật chi tiết, quản lý sổ tay từ vựng và thuật toán ôn tập thông minh (Spaced Repetition).
 
 ---
 
 ## 🏗️ 1. Lựa Chọn Hệ Quản Trị Cơ Sở Dữ Liệu (Database Choice)
 
-Để quản lý các mối quan hệ chặt chẽ giữa **Người dùng (Users)**, **Từ vựng (Vocabularies)**, và **Lịch sử luyện tập (Reviews)**, hệ quản trị cơ sở dữ liệu quan hệ là lựa chọn tối ưu nhất.
+Để lưu trữ dữ liệu linh hoạt, đặc biệt là kết quả transcript chi tiết từ Whisper (các đoạn audio segments kèm timeline), **MongoDB** là một lựa chọn phù hợp.
 
-*   **Khuyên dùng cho Development & Production:** **PostgreSQL** (chạy bằng một container Docker mới trong `docker-compose`).
-*   **OR/M Thích Hợp cho Express + Bun (TypeScript):** **Prisma** hoặc **Drizzle ORM** (Giúp tự động hóa migrations, viết query an toàn kiểu dữ liệu Type-safe).
+*   **Khuyên dùng cho Development & Production:** **MongoDB** (chạy bằng một container Docker mới trong `docker-compose`).
+*   **Thư viện ODM Thích Hợp cho Express + Bun (TypeScript):** **Mongoose** (Giúp định nghĩa Schema chặt chẽ ở tầng ứng dụng và hỗ trợ Type-safety đầy đủ).
 
 ```
    ┌───────────────────────────────────────────────┐
@@ -22,100 +22,139 @@ Tài liệu này vạch ra kiến trúc, thiết kế cơ sở dữ liệu và l
    │  (Xử lý Auth, Quản lý Vocab, Thuật toán SM2)  │
    └───────────────────────────────────────────────┘
         │                                     │
-        │ Prisma ORM                          │ HTTP / JSON
+        │ Mongoose ODM                        │ HTTP / JSON
         ▼                                     ▼
 ┌──────────────┐                       ┌──────────────┐
-│  PostgreSQL  │                       │   FastAPI    │
+│   MongoDB    │                       │   FastAPI    │
 │  (Database)  │                       │  (Whisper)   │
 └──────────────┘                       └──────────────┘
 ```
 
 ---
 
-## 🗄️ 2. Thiết Kế Sơ Đồ Cơ Sở Dữ Liệu (Database Schema)
+## 🗄️ 2. Thiết Kế Sơ Đồ Cơ Sở Dữ Liệu (MongoDB Schemas)
 
-Dưới đây là thiết kế các bảng (tables) quan trọng sử dụng cú pháp Prisma Schema để minh họa:
+Với MongoDB, chúng ta tận dụng cấu trúc tài liệu (Document) để nhúng (embed) các thông tin có mối quan hệ phụ thuộc chặt chẽ, thay vì tách thành quá nhiều bảng như SQL. 
 
-### A. Bảng Người Dùng (`User`)
-Lưu trữ thông tin tài khoản và đăng nhập.
-```prisma
-model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  passwordHash  String
-  fullName      String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  
-  transcriptions Transcription[]
-  vocabularies   Vocabulary[]
-  reviews        FlashcardReview[]
+Cụ thể: **Trạng thái ôn tập (Flashcard State)** sẽ được nhúng trực tiếp vào tài liệu **Vocabulary** vì chúng có mối quan hệ 1-1.
+
+### A. Định nghĩa Types & Interfaces (TypeScript)
+Tạo file `src/types/database.ts` để quản lý kiểu dữ liệu:
+
+```typescript
+import { Types } from 'mongoose';
+
+export interface IUser {
+  _id: Types.ObjectId;
+  email: string;
+  passwordHash: string;
+  fullName?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ITranscriptionSegment {
+  start: number;
+  end: number;
+  text: string;
+  confidence?: number;
+}
+
+export interface ITranscription {
+  _id: Types.ObjectId;
+  userId: Types.ObjectId;
+  title: string;
+  originalText: string;
+  translatedText?: string;
+  sourceUrl?: string;
+  duration: number;
+  language: string;
+  segments?: ITranscriptionSegment[]; // Lưu chi tiết timeline từ Whisper
+  createdAt: Date;
+}
+
+export interface IFlashcardState {
+  repetitions: number;      // Số lần ôn tập đúng liên tiếp
+  interval: number;         // Khoảng thời gian chờ đến lần ôn tiếp theo (ngày)
+  easeFactor: number;       // Độ dễ của từ (mặc định 2.5)
+  nextReviewAt: Date;       // Ngày cần ôn tập tiếp theo
+  lastReviewedAt?: Date;    // Ngày ôn tập gần nhất
+}
+
+export interface IVocabulary {
+  _id: Types.ObjectId;
+  userId: Types.ObjectId;
+  transcriptionId?: Types.ObjectId;
+  word: string;
+  translation: string;
+  contextSentence?: string;
+  notes?: string;
+  flashcardState: IFlashcardState; // Nhúng trực tiếp trạng thái ôn tập
+  createdAt: Date;
 }
 ```
 
-### B. Bảng Lịch Sử Dịch thuật (`Transcription`)
-Lưu trữ các bài nói từ mic hoặc video YouTube mà người dùng đã thực hiện.
-```prisma
-model Transcription {
-  id                   String            @id @default(uuid())
-  userId               String
-  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title                String            // Tiêu đề (hoặc Tên file mic / Tiêu đề YouTube)
-  originalText         String            @db.Text
-  translatedText       String?           @db.Text
-  sourceUrl            String?           // Link YouTube (nếu có)
-  duration             Float
-  language             String
-  createdAt            DateTime          @default(now())
-  
-  vocabularies         Vocabulary[]      // Liên kết tới các từ vựng được lưu từ bài dịch này
-}
-```
+### B. Định nghĩa Mongoose Schemas & Models
+Tạo file `src/models/Schemas.ts`:
 
-### C. Sổ Tay Từ Vựng (`Vocabulary`)
-Lưu trữ những từ vựng học viên chủ động nhấp vào và chọn "Lưu từ mới".
-```prisma
-model Vocabulary {
-  id              String         @id @default(uuid())
-  userId          String
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transcriptionId String?
-  transcription   Transcription? @relation(fields: [transcriptionId], references: [id])
-  
-  word            String         // Từ vựng gốc (ví dụ: "abundant")
-  translation     String         // Nghĩa dịch (ví dụ: "dồi dào, phong phú")
-  contextSentence String?        @db.Text // Câu chứa từ đó để người học nhớ ngữ cảnh
-  notes           String?        @db.Text // Ghi chú cá nhân
-  createdAt       DateTime       @default(now())
-  
-  flashcardState  FlashcardState?
-}
-```
+```typescript
+import { Schema, model } from 'mongoose';
+import { IUser, ITranscription, IVocabulary } from '../types/database';
 
-### D. Trạng Thái Flashcard & Ôn Tập (`FlashcardState` & `FlashcardReview`)
-Lưu trạng thái tính toán tần suất lặp lại theo phương pháp ôn tập ngắt quãng (Spaced Repetition).
-```prisma
-model FlashcardState {
-  id            String     @id @default(uuid())
-  vocabularyId  String     @unique
-  vocabulary    Vocabulary @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
-  
-  // Các thông số của thuật toán SuperMemo-2 (SM-2)
-  repetitions   Int        @default(0)    // Số lần đã ôn tập đúng liên tiếp
-  interval      Int        @default(1)    // Khoảng thời gian chờ đến lần ôn tiếp theo (tính bằng ngày)
-  easeFactor    Float      @default(2.5)  // Độ dễ của từ (mặc định ban đầu là 2.5)
-  nextReviewAt  DateTime   @default(now())// Ngày cần ôn tập tiếp theo
-  lastReviewedAt DateTime?
-}
+// 1. User Schema
+const UserSchema = new Schema<IUser>({
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  passwordHash: { type: String, required: true },
+  fullName: { type: String },
+}, { timestamps: true });
+
+// 2. Transcription Schema
+const TranscriptionSchema = new Schema<ITranscription>({
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  title: { type: String, required: true },
+  originalText: { type: String, required: true },
+  translatedText: { type: String },
+  sourceUrl: { type: String },
+  duration: { type: Number, required: true },
+  language: { type: String, required: true },
+  segments: [{
+    start: { type: Number, required: true },
+    end: { type: Number, required: true },
+    text: { type: String, required: true },
+    confidence: { type: Number }
+  }]
+}, { timestamps: { createdAt: true, updatedAt: false } });
+
+// 3. Vocabulary Schema (Nhúng FlashcardState)
+const VocabularySchema = new Schema<IVocabulary>({
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  transcriptionId: { type: Schema.Types.ObjectId, ref: 'Transcription' },
+  word: { type: String, required: true, trim: true },
+  translation: { type: String, required: true },
+  contextSentence: { type: String },
+  notes: { type: String },
+  flashcardState: {
+    repetitions: { type: Number, default: 0 },
+    interval: { type: Number, default: 1 },
+    easeFactor: { type: Number, default: 2.5 },
+    nextReviewAt: { type: Date, default: Date.now, index: true }, // Index để truy vấn nhanh hàng đợi học
+    lastReviewedAt: { type: Date }
+  }
+}, { timestamps: { createdAt: true, updatedAt: false } });
+
+// Tạo phức hợp Index để tối ưu tìm kiếm từ vựng của từng User cần ôn tập
+VocabularySchema.index({ userId: 1, 'flashcardState.nextReviewAt': 1 });
+
+export const User = model<IUser>('User', UserSchema);
+export const Transcription = model<ITranscription>('Transcription', TranscriptionSchema);
+export const Vocabulary = model<IVocabulary>('Vocabulary', VocabularySchema);
 ```
 
 ---
 
 ## 🔄 3. Thuật Toán Ôn Tập Từ Vựng: SuperMemo-2 (SM-2)
 
-Để học viên ghi nhớ từ vựng hiệu quả nhất, hệ thống sẽ áp dụng thuật toán **SM-2** để tính toán thời điểm học lại tối ưu. 
-
-Mỗi lần học viên ôn tập từ vựng (bằng flashcard), họ sẽ tự đánh giá mức độ nhớ của mình từ **0 đến 5**:
+Khi học viên ôn tập flashcard, họ sẽ tự đánh giá mức độ nhớ của mình từ **0 đến 5**:
 *   `5`: Nhớ hoàn toàn không do dự.
 *   `4`: Nhớ chính xác nhưng cần suy nghĩ một chút.
 *   `3`: Nhớ nhưng mất nhiều thời gian hoặc nhớ mang máng.
@@ -142,25 +181,20 @@ function calculateSM2(
   let easeFactor = prevEaseFactor;
 
   if (quality >= 3) {
-    // Nếu nhớ từ (Đánh giá từ 3, 4, 5)
     if (repetitions === 0) {
-      interval = 1; // Học lại sau 1 ngày
+      interval = 1; // 1 ngày
     } else if (repetitions === 1) {
-      interval = 6; // Học lại sau 6 ngày
+      interval = 6; // 6 ngày
     } else {
       interval = Math.round(prevInterval * easeFactor);
     }
     repetitions++;
   } else {
-    // Nếu quên từ (Đánh giá 0, 1, 2)
     repetitions = 0;
-    interval = 1; // Quay lại học vào ngày mai
+    interval = 1; // Học lại vào ngày mai
   }
 
-  // Cập nhật lại Độ dễ của từ (Ease Factor)
   easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-  
-  // Giới hạn Ease Factor tối thiểu là 1.3
   if (easeFactor < 1.3) {
     easeFactor = 1.3;
   }
@@ -173,58 +207,115 @@ function calculateSM2(
 
 ## 🛠️ 4. Quy Trình Các Bước Triển Khai Chi Tiết (Implementation Roadmap)
 
-### Bước 1: Tích Hợp Cơ Sở Dữ Liệu vào Docker Compose
-1.  Mở `docker-compose.yml`, bổ sung thêm một service `postgres`:
+### Bước 1: Tích Hợp MongoDB vào Docker Compose
+1.  Mở `docker-compose.yml`, bổ sung thêm service `mongodb` thay thế hoặc chạy song song:
     ```yaml
-      postgres:
-        image: postgres:15-alpine
-        container_name: es-postgres
+      mongodb:
+        image: mongo:6.0-jammy
+        container_name: es-mongodb
         ports:
-          - "5432:5432"
+          - "27017:27017"
         environment:
-          - POSTGRES_USER=english_admin
-          - POSTGRES_PASSWORD=your_secure_password
-          - POSTGRES_DB=english_station
+          - MONGO_INITDB_ROOT_USERNAME=english_admin
+          - MONGO_INITDB_ROOT_PASSWORD=your_secure_password
+          - MONGO_INITDB_DATABASE=english_station
         volumes:
-          - pgdata:/var/lib/postgresql/data
+          - mongodata:/data/db
         networks:
           - english-station-network
     ```
-2.  Định nghĩa volume `pgdata` ở cuối file để dữ liệu không bị mất đi khi tắt container.
+2.  Định nghĩa volume `mongodata` ở cuối file `docker-compose.yml`:
+    ```yaml
+    volumes:
+      mongodata:
+        driver: local
+    ```
 
-### Bước 2: Thiết Lập Prisma ORM Trên Backend
-1.  Vào thư mục `backend`, cài đặt thư viện:
+### Bước 2: Thiết Lập Kết Nối Mongoose Trên Backend
+1.  Vào thư mục `backend`, cài đặt thư viện Mongoose:
     ```bash
-    bun add @prisma/client
-    bun add -d prisma
+    bun add mongoose
     ```
-2.  Khởi tạo Prisma: `bunx prisma init`.
-3.  Cập nhật file `.env` đường dẫn kết nối: `DATABASE_URL="postgresql://english_admin:your_secure_password@postgres:5432/english_station?schema=public"`.
-4.  Viết schema như ở phần (2), sau đó chạy lệnh migration để tạo bảng:
-    ```bash
-    bunx prisma migrate dev --name init
+2.  Cập nhật file `.env` đường dẫn kết nối MongoDB:
+    ```env
+    MONGODB_URI="mongodb://english_admin:your_secure_password@mongodb:27017/english_station?authSource=admin"
     ```
+3.  Tạo file khởi tạo kết nối cơ sở dữ liệu `src/config/database.ts`:
+    ```typescript
+    import mongoose from 'mongoose';
+
+    export const connectDB = async () => {
+      try {
+        const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/english_station';
+        await mongoose.connect(uri);
+        console.log('🍃 MongoDB connected successfully!');
+      } catch (error) {
+        console.error('❌ MongoDB connection error:', error);
+        process.exit(1);
+      }
+    };
+    ```
+4.  Import và gọi `connectDB()` trong file chạy chính `src/server.ts` trước khi lắng nghe cổng kết nối của Express.
 
 ### Bước 3: Phát Triển Tính Năng Xác Thực (Authentication)
 1.  Sử dụng thư viện `bcryptjs` để hash mật khẩu và `jsonwebtoken` (JWT) để cấp token đăng nhập.
-2.  Viết các Middleware xác thực JWT trên Express: `auth.middleware.ts`.
-3.  Tạo các Endpoint:
-    *   `POST /api/auth/register` (Đăng ký tài khoản).
-    *   `POST /api/auth/login` (Đăng nhập và nhận Token).
-    *   `GET /api/auth/profile` (Xem thông tin cá nhân).
+2.  Tạo Middleware xác thực JWT trên Express: `src/middlewares/auth.ts`.
+3.  Tạo các API Endpoints trong Router:
+    *   `POST /api/auth/register` (Đăng ký tài khoản mới):
+        ```typescript
+        const { email, password, fullName } = req.body;
+        const passwordHash = await bcrypt.hash(password, 10);
+        const newUser = await User.create({ email, passwordHash, fullName });
+        ```
+    *   `POST /api/auth/login` (Xác thực thông tin và trả về JWT Token).
 
 ### Bước 4: Phát Triển API Sổ Tay Từ Vựng & Lịch Sử
-1.  **Lưu bài dịch:** Chỉnh sửa API nhận diện giọng nói gốc để lưu kết quả nhận diện vào bảng `Transcription` liên kết với `userId`.
-2.  **Lưu từ vựng:** Tạo endpoint `POST /api/vocabularies` để lưu từ mới do học viên nhấp chọn, kèm theo câu ngữ cảnh trích xuất trực tiếp từ bài dịch gốc.
-3.  **Lấy danh sách cần học:** Tạo endpoint `GET /api/vocabularies/review-queue` lấy ra các từ có `nextReviewAt <= thời_gian_hiện_tại`.
-4.  **Cập nhật tiến trình học:** Tạo endpoint `POST /api/vocabularies/review` nhận vào `quality` (0-5) từ Client, áp dụng thuật toán SM-2 để tính ngày ôn tiếp theo và cập nhật cơ sở dữ liệu.
+1.  **Lưu bài dịch (`Transcription`)**:
+    *   Chỉnh sửa API nhận diện giọng nói gốc để lưu kết quả nhận diện (kèm `segments` chứa timeline) vào collection `transcriptions` liên kết với `userId`.
+2.  **Lưu từ vựng (`Vocabulary`)**:
+    *   Tạo endpoint `POST /api/vocabularies` để lưu từ mới do học viên nhấp chọn.
+    *   Mặc định khởi tạo `flashcardState` với các giá trị ban đầu.
+3.  **Lấy danh sách cần học (`Review Queue`)**:
+    *   Tạo endpoint `GET /api/vocabularies/review-queue` lấy ra các từ có lịch học đến hạn hoặc quá hạn:
+        ```typescript
+        const reviewQueue = await Vocabulary.find({
+          userId: req.user.id,
+          'flashcardState.nextReviewAt': { $lte: new Date() }
+        }).sort({ 'flashcardState.nextReviewAt': 1 });
+        ```
+4.  **Cập nhật tiến trình học (`Review Word`)**:
+    *   Tạo endpoint `POST /api/vocabularies/review` nhận `vocabId` và `quality` (0-5) từ Client.
+    *   Tìm kiếm từ vựng, tính toán các thông số mới bằng thuật toán SM-2, cập nhật và thiết lập ngày ôn tập tiếp theo:
+        ```typescript
+        const vocab = await Vocabulary.findById(vocabId);
+        if (!vocab) return res.status(404).json({ message: 'Không tìm thấy từ vựng' });
+
+        const currentReview = vocab.flashcardState;
+        const nextState = calculateSM2(
+          quality,
+          currentReview.repetitions,
+          currentReview.interval,
+          currentReview.easeFactor
+        );
+
+        const nextReviewDate = new Date();
+        nextReviewDate.setDate(nextReviewDate.getDate() + nextState.interval);
+
+        vocab.flashcardState = {
+          repetitions: nextState.repetitions,
+          interval: nextState.interval,
+          easeFactor: nextState.easeFactor,
+          nextReviewAt: nextReviewDate,
+          lastReviewedAt: new Date()
+        };
+
+        await vocab.save();
+        ```
 
 ### Bước 5: Cải Tiến Giao Diện Người Dùng (React Frontend)
-1.  **Màn hình Login/Register:** Thiết lập hệ thống Router (React Router DOM) bảo vệ màn hình học nếu chưa đăng nhập.
-2.  **Tương tác nhấp từ (Click-to-Add):**
-    *   Tại màn hình kết quả dịch, khi di chuột qua từng từ của văn bản tiếng Anh, hiển thị popup giải nghĩa nhanh.
-    *   Có một nút bấm ➕ để người học nhanh chóng lưu từ đó vào "Sổ tay từ vựng" cá nhân.
-3.  **Trang Sổ Tay Từ Vựng (Vocabulary Notebook):** Hiển thị danh sách từ đã lưu, nghĩa tiếng Việt, câu ngữ cảnh và trạng thái trí nhớ (Ví dụ: "Đã thuộc", "Cần ôn tập hôm nay").
-4.  **Tính năng Luyện Tập Flashcard (Spaced Repetition Study):**
-    *   Màn hình lật thẻ (Flashcard): Mặt trước hiện từ tiếng Anh + phát âm, mặt sau hiện nghĩa + câu ví dụ.
-    *   Bên dưới có 6 nút đánh giá mức độ nhớ từ 0 đến 5. Khi bấm, từ tiếp theo sẽ xuất hiện và từ cũ được lên lịch ôn tập tiếp theo.
+1.  **Hệ thống Route Bảo Vệ:** Quản lý trạng thái đăng nhập của người dùng.
+2.  **Tương tác click-to-save:** Cho phép nhấp chọn từ vựng ngay trên phụ đề dịch thuật, nhấn nút ➕ để gọi API lưu từ.
+3.  **Màn hình Flashcard:**
+    *   Lấy danh sách từ hàng đợi ôn tập từ API `/api/vocabularies/review-queue`.
+    *   Sử dụng hiệu ứng lật thẻ (CSS 3D Transforms) để hiển thị nghĩa từ, phát âm và câu ngữ cảnh.
+    *   Cung cấp 6 nút đánh giá (0-5) kích hoạt API cập nhật tiến độ ôn tập.
