@@ -110,6 +110,9 @@ export function TranscriptDisplay({ result, onNewRecording }: TranscriptDisplayP
       {/* Main Transcript Text */}
       <div className="transcript__text-container" id="transcript-text">
         <p className="transcript__text">{result.transcript}</p>
+        {result.translatedTranscript && (
+          <p className="transcript__translated-text">{result.translatedTranscript}</p>
+        )}
       </div>
 
       {/* Metadata */}
@@ -158,7 +161,14 @@ export function TranscriptDisplay({ result, onNewRecording }: TranscriptDisplayP
                   <span className="transcript__segment-time">
                     {formatTimestamp(segment.start)} - {formatTimestamp(segment.end)}
                   </span>
-                  <span className="transcript__segment-text">{segment.text}</span>
+                  <div className="transcript__segment-content">
+                    <span className="transcript__segment-text">{segment.text}</span>
+                    {segment.translatedText && (
+                      <span className="transcript__segment-translated-text">
+                        {segment.translatedText}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

@@ -24,6 +24,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 
 import { config } from './config';
+import { connectDB } from './config/database';
 import routes from './routes';
 import { errorHandler } from './middlewares';
 import { sendError } from './utils/responseHelper';
@@ -105,12 +106,14 @@ app.use(errorHandler);
 // Start Server
 // ============================================
 
-app.listen(config.port, () => {
-  logger.info(`🚀 EnglishStation Backend running on port ${config.port}`);
-  logger.info(`📡 Whisper Service URL: ${config.whisperServiceUrl}`);
-  logger.info(`🌍 Allowed Origins: ${config.allowedOrigins.join(', ')}`);
-  logger.info(`📁 Upload Directory: ${config.uploadDir}`);
-  logger.info(`📏 Max File Size: ${config.maxFileSizeMB}MB`);
+connectDB().then(() => {
+  app.listen(config.port, () => {
+    logger.info(`🚀 EnglishStation Backend running on port ${config.port}`);
+    logger.info(`📡 Whisper Service URL: ${config.whisperServiceUrl}`);
+    logger.info(`🌍 Allowed Origins: ${config.allowedOrigins.join(', ')}`);
+    logger.info(`📁 Upload Directory: ${config.uploadDir}`);
+    logger.info(`📏 Max File Size: ${config.maxFileSizeMB}MB`);
+  });
 });
 
 export default app;

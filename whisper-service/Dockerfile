@@ -26,9 +26,11 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application source
 COPY app ./app
 
-# Create temp directories for audio processing
-RUN mkdir -p /tmp/whisper /tmp/youtube_audio && \
-    chown -R whisperuser:whisper /tmp/whisper /tmp/youtube_audio
+# Create temp directory for uploaded audio processing (mic recordings, etc.)
+# NOTE: No /tmp/youtube_audio directory needed — YouTube audio is now streamed
+# directly from CDN via FFmpeg without writing any files to disk.
+RUN mkdir -p /tmp/whisper && \
+    chown -R whisperuser:whisper /tmp/whisper
 
 # Create HuggingFace cache directory with correct ownership
 # This is the mount point for the whisper-models Docker volume.

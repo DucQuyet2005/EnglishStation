@@ -51,6 +51,16 @@ export const config = {
 
   // Logging
   logLevel: process.env.LOG_LEVEL || 'dev',
+
+  // Database
+  mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/english_station',
+
+  // JWT
+  jwtSecret: process.env.JWT_SECRET || 'fallback_secret_change_me',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+
+  // Google OAuth
+  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
 } as const;
 
 export type AppConfig = typeof config;

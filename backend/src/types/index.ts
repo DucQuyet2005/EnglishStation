@@ -51,6 +51,7 @@ export interface WhisperSegment {
 export interface TranscriptionResponse {
   id: string;
   transcript: string;
+  translatedTranscript?: string;
   language: string;
   confidence: number;
   duration: number;
@@ -73,6 +74,7 @@ export interface TranscriptionSegment {
   start: number;
   end: number;
   text: string;
+  translatedText?: string;
 }
 
 // ---- Upload Types ----

@@ -18,7 +18,7 @@ interface UseYouTubeTranscriptionReturn {
   /** Error message if transcription failed */
   error: string | null;
   /** Send YouTube URL for transcription */
-  transcribe: (url: string) => Promise<void>;
+  transcribe: (url: string, targetLang?: string) => Promise<void>;
   /** Clear the current result */
   clearResult: () => void;
 }
@@ -28,13 +28,13 @@ export function useYouTubeTranscription(): UseYouTubeTranscriptionReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const transcribe = useCallback(async (url: string) => {
+  const transcribe = useCallback(async (url: string, targetLang?: string) => {
     setIsLoading(true);
     setError(null);
     setResult(null);
 
     try {
-      const result = await transcribeYouTube(url);
+      const result = await transcribeYouTube(url, targetLang);
       setResult(result);
     } catch (err) {
       const message = err instanceof Error

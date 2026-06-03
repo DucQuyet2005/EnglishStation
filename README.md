@@ -9,6 +9,8 @@ A production-ready system for learning English through speech recognition, power
 - **Microphone Recording:** Record your voice directly in the browser and get an instant transcription.
 - **YouTube Transcription:** Paste a YouTube video link to automatically extract and transcribe the audio (up to 10 minutes).
 - **Fast & Accurate:** Uses the `faster-whisper` model (CTranslate2) for high-performance offline speech recognition.
+- **User Authentication:** Secure JWT-based registration and login, including native **Google Sign-In** support.
+- **Database Integration:** Persistent storage using **MongoDB & Mongoose** to save transcription history and vocabulary.
 - **Visual Feedback:** See your transcription broken down into timed segments with confidence scores.
 - **Clean Architecture:** Modern decoupled stack with React, Node.js (Bun), and Python FastAPI.
 - **Dockerized:** Simple one-command deployment using Docker Compose.
@@ -42,12 +44,16 @@ A production-ready system for learning English through speech recognition, power
 │   React Frontend │────▶│  Express Backend  │────▶│  Python Whisper      │
 │   (Vite + TS)    │     │  (Bun Runtime)   │     │  Service (FastAPI)   │
 │                  │◀────│                  │◀────│                      │
-│   Port: 5173     │     │   Port: 3001     │     │    Port: 8000        │
+│   Port: 3000     │     │   Port: 3001     │     │    Port: 8000        │
 │                  │     │                  │     │                      │
 └──────────────────┘     └──────────────────┘     └──────────────────────┘
-    Browser Audio           Multer Upload            faster-whisper
-    MediaRecorder          Axios → FastAPI           CTranslate2
-                           File Cleanup              VAD Filter
+         ▲                         ▲
+         │                         │
+         ▼                         ▼
+   Google OAuth              ┌──────────────┐
+   Client Flow               │   MongoDB    │
+                             │ (Atlas/Local)│
+                             └──────────────┘
 ```
 
 ### Tại sao tách Python Service riêng?
@@ -139,88 +145,28 @@ Application Start
 ```
 EnglishStation/
 ├── frontend/                    # React Frontend
-│   ├── src/
-│   │   ├── api/
-│   │   │   └── index.ts         # Axios API client
-│   │   ├── components/
-│   │   │   ├── Header.tsx       # App header
-│   │   │   ├── Header.css
-│   │   │   ├── AudioRecorder.tsx # Recording UI
-│   │   │   ├── AudioRecorder.css
-│   │   │   ├── TranscriptDisplay.tsx # Result UI
-│   │   │   ├── TranscriptDisplay.css
-│   │   │   ├── LoadingOverlay.tsx # Loading state
-│   │   │   ├── LoadingOverlay.css
-│   │   │   ├── ErrorAlert.tsx   # Error display
-│   │   │   └── ErrorAlert.css
-│   │   ├── hooks/
-│   │   │   ├── useAudioRecorder.ts  # Mic recording logic
-│   │   │   └── useTranscription.ts  # Upload & result logic
-│   │   ├── types/
-│   │   │   └── index.ts         # TypeScript types
-│   │   ├── App.tsx              # Root component
-│   │   ├── App.css
-│   │   ├── main.tsx             # Entry point
-│   │   ├── index.css            # Global styles
-│   │   └── vite-env.d.ts
-│   ├── index.html
-│   ├── nginx.conf               # Nginx config for Docker
-│   ├── vite.config.ts
-│   ├── tsconfig.json
-│   ├── package.json
-│   ├── Dockerfile
-│   └── .env.example
+│   └── src/
+│       ├── api/                 # API connection layer
+│       ├── components/          # UI Components (Header, Auth, Audio, etc.)
+│       ├── context/             # Global states (AuthContext, etc.)
+│       ├── hooks/               # Custom React Hooks
+│       └── types/               # TypeScript Definitions
 │
 ├── backend/                     # Express Backend
-│   ├── src/
-│   │   ├── config/
-│   │   │   └── index.ts         # Centralized config
-│   │   ├── controllers/
-│   │   │   └── transcription.controller.ts
-│   │   ├── middlewares/
-│   │   │   ├── upload.middleware.ts      # Multer config
-│   │   │   ├── error.middleware.ts       # Global error handler
-│   │   │   ├── validation.middleware.ts  # File validation
-│   │   │   └── index.ts                 # Barrel export
-│   │   ├── routes/
-│   │   │   ├── transcription.routes.ts
-│   │   │   └── index.ts
-│   │   ├── services/
-│   │   │   └── whisper.service.ts  # Whisper API client
-│   │   ├── types/
-│   │   │   └── index.ts
-│   │   ├── utils/
-│   │   │   ├── AppError.ts      # Custom error class
-│   │   │   ├── asyncHandler.ts  # Async wrapper
-│   │   │   ├── logger.ts        # Logging utility
-│   │   │   └── responseHelper.ts # Response formatters
-│   │   └── server.ts            # Express app entry point
-│   ├── uploads/                 # Temp file storage
-│   │   └── .gitkeep
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── Dockerfile
-│   └── .env.example
+│   └── src/
+│       ├── config/              # Environment configurations
+│       ├── controllers/         # API Request Handlers
+│       ├── middlewares/         # JWT Auth & Upload Middlewares
+│       ├── models/              # Mongoose DB Schemas & Models
+│       ├── routes/              # Express API Routes
+│       ├── services/            # Whisper client service integration
+│       ├── types/               # TypeScript Definitions
+│       └── utils/               # AppError, Logger & response helpers
 │
-├── whisper-service/             # Python Whisper Service
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py              # FastAPI app
-│   │   ├── config.py            # Pydantic settings
-│   │   ├── services/
-│   │   │   ├── __init__.py
-│   │   │   └── whisper_service.py  # Core transcription
-│   │   └── utils/
-│   │       ├── __init__.py
-│   │       └── audio_validator.py  # File validation
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .env.example
-│
-├── docker-compose.yml           # Service orchestration
-├── .env.example                 # Root env template
-├── .gitignore
-└── README.md                    # This file
+└── whisper-service/             # Python Whisper Service
+    └── app/
+        ├── services/            # Core Whisper Transcription logic
+        └── utils/               # Audio Validation utility
 ```
 
 ---
@@ -229,18 +175,19 @@ EnglishStation/
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| Frontend | React 19 + TypeScript | UI components |
-| Build Tool | Vite 6 | Fast HMR development |
-| HTTP Client | Axios | API requests with progress |
-| Backend | Express 4 | REST API server |
-| Runtime | Bun | Fast TypeScript execution |
-| File Upload | Multer | Multipart form handling |
-| Security | Helmet + CORS + Rate Limit | HTTP hardening |
-| AI Service | FastAPI | Async Python web framework |
-| STT Engine | faster-whisper | Speech-to-text inference |
-| Audio | ffmpeg | Audio format conversion |
-| Containers | Docker + Docker Compose | Deployment |
-| Reverse Proxy | Nginx | Static files + API proxy |
+| Frontend | React 19 + TypeScript | UI components & type safety |
+| Build Tool | Vite 6 | Fast HMR development & optimized builds |
+| Auth (Client) | Google Identity Services SDK | One-tap and button-based Google Sign-In |
+| Backend | Express 4 | REST API web server |
+| Runtime | Bun | High-performance TypeScript execution |
+| Database | MongoDB + Mongoose | Data persistence (users, records, vocabulary) |
+| Security & Auth | JWT + bcryptjs | Stateless session tokens & secure password hashing |
+| File Upload | Multer | Multipart form data upload handling |
+| AI Service | FastAPI | Async Python machine learning gateway |
+| STT Engine | faster-whisper | High-speed CTranslate2 Speech-to-Text inference |
+| Audio | ffmpeg | Server-side audio conversion & processing |
+| Containers | Docker + Docker Compose | Infrastructure orchestration |
+| Reverse Proxy | Nginx | Static frontend server & proxy router |
 
 ---
 
@@ -365,74 +312,128 @@ npm run dev
 
 ## 📡 API Documentation
 
-### POST /api/transcribe
+### Authentication API
 
-Upload audio for transcription.
-
-**Request:**
-```
-Content-Type: multipart/form-data
-Field: audio (file)
-Max Size: 10MB
-Formats: wav, mp3, ogg, webm, flac, m4a, aac, mp4
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "transcript": "Hello, my name is John and I am learning English.",
-    "language": "en",
-    "confidence": 0.9847,
-    "duration": 3.52,
-    "segments": [
-      {
-        "id": 0,
-        "start": 0.00,
-        "end": 3.52,
-        "text": "Hello, my name is John and I am learning English."
-      }
-    ],
-    "createdAt": "2026-05-26T10:30:00.000Z"
-  },
-  "message": "Transcription completed successfully",
-  "timestamp": "2026-05-26T10:30:02.123Z"
-}
-```
-
-**Error Responses:**
-```json
-// 400 - No file
-{ "success": false, "error": { "code": "BAD_REQUEST", "message": "No audio file provided" } }
-
-// 413 - File too large
-{ "success": false, "error": { "code": "FILE_TOO_LARGE", "message": "File exceeds maximum allowed size" } }
-
-// 415 - Wrong format
-{ "success": false, "error": { "code": "UNSUPPORTED_MEDIA_TYPE", "message": "Unsupported audio format" } }
-
-// 503 - Whisper down
-{ "success": false, "error": { "code": "SERVICE_UNAVAILABLE", "message": "Speech recognition service is not available" } }
-```
-
-### GET /api/health
-
-Health check endpoint.
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "status": "ok",
-    "service": "english-station-backend",
-    "whisperService": "connected",
-    "timestamp": "2026-05-26T10:30:00.000Z"
+#### POST /api/auth/register
+Register a new user account with email and password.
+- **Request Body:**
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "strongpassword123",
+    "fullName": "John Doe"
   }
-}
-```
+  ```
+- **Success Response (201):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "token": "eyJhbGciOi...",
+      "user": {
+        "id": "60d5ec49f1b29c2d18c1e4f1",
+        "email": "user@example.com",
+        "fullName": "John Doe"
+      }
+    },
+    "message": "Account created successfully",
+    "timestamp": "2026-06-03T14:00:00.000Z"
+  }
+  ```
+
+#### POST /api/auth/login
+Authenticate with email and password.
+- **Request Body:**
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "strongpassword123"
+  }
+  ```
+- **Success Response (200):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "token": "eyJhbGciOi...",
+      "user": {
+        "id": "60d5ec49f1b29c2d18c1e4f1",
+        "email": "user@example.com",
+        "fullName": "John Doe"
+      }
+    },
+    "message": "Login successful",
+    "timestamp": "2026-06-03T14:00:00.000Z"
+  }
+  ```
+
+#### POST /api/auth/google
+Authenticate or register automatically using a Google ID token.
+- **Request Body:**
+  ```json
+  {
+    "idToken": "eyJhbGciOiJSUzI1Ni..."
+  }
+  ```
+- **Success Response (200):** Returns JWT token and user profile.
+
+#### GET /api/auth/me
+Fetch the logged-in user profile. Requires Bearer Token.
+- **Headers:** `Authorization: Bearer <token>`
+- **Success Response (200):** Returns user profile details.
+
+---
+
+### Speech-to-Text API
+
+#### POST /api/transcribe
+Upload audio for transcription. Requires Bearer Token.
+- **Headers:** `Authorization: Bearer <token>`
+- **Request:**
+  ```
+  Content-Type: multipart/form-data
+  Field: audio (file)
+  Max Size: 10MB
+  Formats: wav, mp3, ogg, webm, flac, m4a, aac, mp4
+  ```
+- **Success Response (200):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": "60d5ec49f1b29c2d18c1e4f5",
+      "transcript": "Hello, my name is John and I am learning English.",
+      "language": "en",
+      "confidence": 0.9847,
+      "duration": 3.52,
+      "segments": [
+        {
+          "start": 0.00,
+          "end": 3.52,
+          "text": "Hello, my name is John and I am learning English."
+        }
+      ],
+      "createdAt": "2026-05-26T10:30:00.000Z"
+    },
+    "message": "Transcription completed successfully",
+    "timestamp": "2026-05-26T10:30:02.123Z"
+  }
+  ```
+
+#### GET /api/health
+Health check endpoint.
+- **Response (200):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "status": "ok",
+      "service": "english-station-backend",
+      "whisperService": "connected",
+      "timestamp": "2026-05-26T10:30:00.000Z"
+    }
+  }
+  ```
 
 ---
 
@@ -444,12 +445,14 @@ Health check endpoint.
 |----------|---------|-------------|
 | `PORT` | 3001 | Backend server port |
 | `NODE_ENV` | development | Environment mode |
-| `WHISPER_SERVICE_URL` | http://localhost:8000 | Whisper service URL |
+| `MONGODB_URI` | `mongodb://localhost:27017/english_station` | MongoDB Atlas/Local connection URI |
+| `JWT_SECRET` | - | Secret key used to sign JWT session tokens |
+| `JWT_EXPIRES_IN` | `7d` | Session duration expiration |
+| `GOOGLE_CLIENT_ID` | - | Client ID from Google Cloud Console credentials |
+| `WHISPER_SERVICE_URL` | `http://localhost:8000` | Whisper service host URL |
 | `MAX_FILE_SIZE_MB` | 10 | Maximum upload file size |
-| `ALLOWED_ORIGINS` | http://localhost:5173 | CORS allowed origins |
-| `UPLOAD_DIR` | ./uploads | Temporary file storage |
-| `RATE_LIMIT_WINDOW_MS` | 60000 | Rate limit window |
-| `RATE_LIMIT_MAX_REQUESTS` | 30 | Max requests per window |
+| `ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` | CORS allowed origins |
+| `UPLOAD_DIR` | `./uploads` | Temporary file storage path |
 
 ### Whisper Service
 
@@ -465,7 +468,8 @@ Health check endpoint.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VITE_API_URL` | /api | Backend API base URL |
+| `VITE_API_URL` | `http://localhost:3001/api` | Backend API base URL |
+| `VITE_GOOGLE_CLIENT_ID` | - | Google OAuth Client ID matching the backend config |
 
 ---
 

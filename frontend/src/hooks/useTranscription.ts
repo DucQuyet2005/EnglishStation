@@ -20,7 +20,7 @@ interface UseTranscriptionReturn {
   /** Error message if transcription failed */
   error: string | null;
   /** Send audio blob for transcription */
-  transcribe: (blob: Blob) => Promise<void>;
+  transcribe: (blob: Blob, targetLang?: string) => Promise<void>;
   /** Clear the current result */
   clearResult: () => void;
 }
@@ -31,7 +31,7 @@ export function useTranscription(): UseTranscriptionReturn {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const transcribe = useCallback(async (blob: Blob) => {
+  const transcribe = useCallback(async (blob: Blob, targetLang?: string) => {
     setIsLoading(true);
     setError(null);
     setUploadProgress(0);
@@ -47,6 +47,7 @@ export function useTranscription(): UseTranscriptionReturn {
       const result = await transcribeAudio(
         blob,
         `recording.${ext}`,
+        targetLang,
         (progress) => setUploadProgress(progress),
       );
 
