@@ -18,6 +18,8 @@ import { TranscriptDisplay } from './components/TranscriptDisplay';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { ErrorAlert } from './components/ErrorAlert';
 import { LanguageSelector } from './components/LanguageSelector';
+import { AuthPage } from './components/AuthPage';
+import { useAuth } from './context/AuthContext';
 import { useTranscription } from './hooks/useTranscription';
 import { useYouTubeTranscription } from './hooks/useYouTubeTranscription';
 import './App.css';
@@ -25,6 +27,7 @@ import './App.css';
 type InputMode = 'mic' | 'youtube';
 
 function App() {
+  const { user, isLoading: authLoading, logout } = useAuth();
   const [activeMode, setActiveMode] = useState<InputMode>('mic');
   const [targetLang, setTargetLang] = useState<string>('none');
 
@@ -60,9 +63,26 @@ function App() {
     }
   };
 
+  // Waiting for session restore
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ width: 36, height: 36, border: '3px solid rgba(99,102,241,0.3)', borderTopColor: '#6366f1', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+      </div>
+    );
+  }
+
+  // Not logged in — show auth page
+  if (!user) return <AuthPage />;
+
   return (
     <div className="app" id="app-root">
       <Header />
+
+      <div className="app__userbar" id="app-userbar">
+        <span className="app__userbar-greeting">Hi, {user.fullName || user.email}</span>
+        <button className="app__userbar-logout" id="logout-btn" onClick={logout}>Sign out</button>
+      </div>
 
       <main className="app__main">
         <div className="app__container">
