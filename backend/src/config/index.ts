@@ -51,6 +51,9 @@ export const config = {
 
   // Logging
   logLevel: process.env.LOG_LEVEL || 'dev',
+
+  // Database
+  mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/english_station',
 } as const;
 
 export type AppConfig = typeof config;
