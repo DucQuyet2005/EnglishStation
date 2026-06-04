@@ -43,6 +43,7 @@ export const transcribeAudio = asyncHandler(
       file.path,
       file.originalname,
       targetLang,
+      req.user?.userId,
     );
 
     log.info(`Transcription successful: "${result.transcript.substring(0, 50)}..."`);
@@ -98,7 +99,7 @@ export const youtubeTranscribe = asyncHandler(
     log.info(`Processing YouTube transcription request: ${url}, targetLang: ${targetLang || 'none'}`);
 
     // Delegate to whisper service
-    const result = await whisperService.transcribeYouTube(url.trim(), targetLang);
+    const result = await whisperService.transcribeYouTube(url.trim(), targetLang, req.user?.userId);
 
     log.info(
       `YouTube transcription successful: "${result.transcript.substring(0, 50)}..."`,

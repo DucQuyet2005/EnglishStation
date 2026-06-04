@@ -1,0 +1,505 @@
+/* ================================================
+   DictationWorkspace — Core Typing Practice UI
+   ================================================ */
+
+.dw {
+  width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Loading ---- */
+.dw__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 6rem 0;
+  color: rgba(160, 160, 200, 0.6);
+}
+
+.dw__spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: dw-spin 0.7s linear infinite;
+}
+
+@keyframes dw-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Error ---- */
+.dw__error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 4rem 1rem;
+  text-align: center;
+}
+
+.dw__error-msg {
+  padding: 1rem 1.5rem;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: 14px;
+  color: #fca5a5;
+  font-size: 0.9rem;
+  max-width: 500px;
+  line-height: 1.5;
+}
+
+/* ---- Top Bar ---- */
+.dw__topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.dw__back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: rgba(200, 200, 230, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.dw__back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f0f0ff;
+}
+
+.dw__topbar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dw__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e8e8f8;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dw__progress-info {
+  font-size: 0.75rem;
+  color: rgba(160, 160, 200, 0.5);
+  margin-top: 0.15rem;
+}
+
+.dw__topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* ---- Speed Control ---- */
+.dw__speed-group {
+  display: flex;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dw__speed-btn {
+  padding: 0.3rem 0.5rem;
+  background: transparent;
+  border: none;
+  color: rgba(160, 160, 200, 0.5);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.dw__speed-btn:hover {
+  color: rgba(200, 200, 230, 0.8);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dw__speed-btn--active {
+  background: rgba(99, 102, 241, 0.15);
+  color: #c4b5fd;
+  font-weight: 600;
+}
+
+/* ---- Toggle Video ---- */
+.dw__toggle-video {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  color: rgba(160, 160, 200, 0.6);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.dw__toggle-video:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f0f0ff;
+}
+
+.dw__toggle-label {
+  font-size: 0.72rem;
+}
+
+/* ---- Progress Bar ---- */
+.dw__progress-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.dw__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #a78bfa);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+/* ---- YouTube Player ---- */
+.dw__player-container {
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
+  background: #000;
+}
+
+.dw__player-container--visible {
+  max-height: 300px;
+  opacity: 1;
+  margin-bottom: 1rem;
+}
+
+#yt-player {
+  border-radius: 14px;
+}
+
+/* ---- Segment Area ---- */
+.dw__segment {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  padding: 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dw__segment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dw__segment-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(165, 180, 252, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ---- Hint Button ---- */
+.dw__hint-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+  background: rgba(250, 204, 21, 0.08);
+  border: 1px solid rgba(250, 204, 21, 0.12);
+  border-radius: 10px;
+  color: #fde68a;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.dw__hint-btn:hover {
+  background: rgba(250, 204, 21, 0.14);
+  border-color: rgba(250, 204, 21, 0.25);
+}
+
+/* ---- Character Display ---- */
+.dw__chars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-height: 60px;
+  align-items: center;
+  padding: 0.5rem 0;
+  line-height: 2.2;
+}
+
+/* Shake animation */
+.dw__chars--shake {
+  animation: dw-shake 0.4s ease;
+}
+
+@keyframes dw-shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 50%, 90% { transform: translateX(-4px); }
+  30%, 70% { transform: translateX(4px); }
+}
+
+.dw__char {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2em;
+  height: 1.8em;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 1.15rem;
+  font-weight: 600;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.dw__char--space {
+  width: 0.6em;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Correct (green) */
+.dw__char--correct {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.08);
+  text-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+}
+
+/* Error (red) */
+.dw__char--error {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+  animation: dw-char-error 0.3s ease;
+}
+
+@keyframes dw-char-error {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* Hint (amber/gold) */
+.dw__char--hint {
+  color: #fbbf24;
+  background: rgba(250, 204, 21, 0.06);
+  text-shadow: 0 0 6px rgba(250, 204, 21, 0.2);
+  border-bottom: 2px dashed rgba(250, 204, 21, 0.3);
+}
+
+/* Active position */
+.dw__char--active {
+  color: rgba(160, 160, 200, 0.4);
+  background: rgba(99, 102, 241, 0.08);
+  animation: dw-blink 1.2s ease infinite;
+}
+
+@keyframes dw-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Pending placeholder */
+.dw__char--pending {
+  color: rgba(160, 160, 200, 0.2);
+}
+
+/* Active word highlight (glow underline) */
+.dw__char--active-word:not(.dw__char--space) {
+  border-bottom: 2px dashed rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.08);
+}
+
+/* ---- Hidden Input ---- */
+.dw__input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  color: #f0f0ff;
+  font-size: 1rem;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  outline: none;
+  caret-color: #6366f1;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dw__input:focus {
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+}
+
+.dw__input::placeholder {
+  color: rgba(160, 160, 200, 0.25);
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+}
+
+/* ---- Hotkey Hints ---- */
+.dw__hotkeys {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.dw__hotkey {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: rgba(160, 160, 200, 0.35);
+}
+
+.dw__hotkey kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.45rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(200, 200, 230, 0.5);
+  font-family: inherit;
+  min-width: 1.5em;
+  text-align: center;
+}
+
+/* ---- Completion Screen ---- */
+.dw__complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4rem 1rem;
+  gap: 0.75rem;
+}
+
+.dw__complete-icon {
+  font-size: 4rem;
+  animation: dw-bounce 0.6s ease;
+}
+
+@keyframes dw-bounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.dw__complete-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+}
+
+.dw__complete-subtitle {
+  font-size: 1rem;
+  color: rgba(200, 200, 230, 0.7);
+  margin: 0;
+}
+
+.dw__complete-stats {
+  font-size: 0.85rem;
+  color: rgba(160, 160, 200, 0.5);
+  margin: 0;
+}
+
+/* ---- General Button ---- */
+.dw__btn {
+  padding: 0.55rem 1.2rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.dw__btn--back {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(200, 200, 230, 0.7);
+}
+
+.dw__btn--back:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f0f0ff;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 600px) {
+  .dw__topbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .dw__topbar-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .dw__chars {
+    font-size: 0.95rem;
+  }
+
+  .dw__char {
+    font-size: 1rem;
+    width: 1.1em;
+    height: 1.6em;
+  }
+
+  .dw__segment {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+}

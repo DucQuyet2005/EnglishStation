@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { IUser, ITranscription, IVocabulary } from '../types/database';
+import { IUser, ITranscription, IVocabulary, IDictationProgress } from '../types/database';
 
 // 1. User Schema
 const UserSchema = new Schema<IUser>({
@@ -23,9 +23,23 @@ const TranscriptionSchema = new Schema<ITranscription>({
     text: { type: String, required: true },
     confidence: { type: Number }
   }]
-}, { timestamps: { createdAt: true, updatedAt: false } });
+}, { timestamps: true });
 
-// 3. Vocabulary Schema (Nhúng FlashcardState)
+// 3. DictationProgress Schema
+const DictationProgressSchema = new Schema<IDictationProgress>({
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  transcriptionId: { type: Schema.Types.ObjectId, ref: 'Transcription', required: true, index: true },
+  currentSegmentIndex: { type: Number, default: 0, required: true },
+  completed: { type: Boolean, default: false },
+  hintsUsedCount: { type: Number, default: 0 },
+  incorrectAttempts: { type: Number, default: 0 },
+  lastActiveAt: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+// Each user has one progress record per transcription
+DictationProgressSchema.index({ userId: 1, transcriptionId: 1 }, { unique: true });
+
+// 4. Vocabulary Schema (Nhúng FlashcardState)
 const VocabularySchema = new Schema<IVocabulary>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   transcriptionId: { type: Schema.Types.ObjectId, ref: 'Transcription' },
@@ -47,4 +61,5 @@ VocabularySchema.index({ userId: 1, 'flashcardState.nextReviewAt': 1 });
 
 export const User = model<IUser>('User', UserSchema);
 export const Transcription = model<ITranscription>('Transcription', TranscriptionSchema);
+export const DictationProgress = model<IDictationProgress>('DictationProgress', DictationProgressSchema);
 export const Vocabulary = model<IVocabulary>('Vocabulary', VocabularySchema);
