@@ -16,6 +16,12 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.app__userbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .app__userbar-greeting {
   font-size: 0.85rem;
   color: rgba(165, 180, 252, 0.8);
@@ -41,6 +47,25 @@
   color: #fff;
 }
 
+.app__userbar-lessons {
+  padding: 0.3rem 0.85rem;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  color: #a5b4fc;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.app__userbar-lessons:hover {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #c4b5fd;
+}
+
 .app__main {
   flex: 1;
   display: flex;
@@ -50,7 +75,7 @@
 
 .app__container {
   width: 100%;
-  max-width: 600px;
+  max-width: 800px;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;

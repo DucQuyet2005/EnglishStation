@@ -21,6 +21,7 @@ import { Logger } from '../utils/logger';
 import type { WhisperTranscriptionResult, TranscriptionResponse, YouTubeMetadata } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { translateSegments, translateText } from './translation.service';
+import { Transcription } from '../models/Schemas';
 
 const log = new Logger('WhisperService');
 
@@ -40,6 +41,7 @@ export async function transcribeAudio(
   filePath: string,
   originalName: string,
   targetLang?: string,
+  userId?: string,
 ): Promise<TranscriptionResponse> {
   log.info(`Starting transcription for: ${originalName} (Translation: ${targetLang || 'none'})`);
 
@@ -101,6 +103,30 @@ export async function transcribeAudio(
       })),
       createdAt: new Date().toISOString(),
     };
+
+    // Persist to MongoDB if userId is provided (authenticated request)
+    if (userId) {
+      try {
+        const saved = await Transcription.create({
+          userId,
+          title: originalName.replace(/\.[^.]+$/, ''),
+          originalText: result.text.trim(),
+          translatedText: translatedTranscript,
+          duration: result.duration,
+          language: result.language,
+          segments: result.segments.map(seg => ({
+            start: seg.start,
+            end: seg.end,
+            text: seg.text.trim(),
+            confidence: seg.avg_logprob,
+          })),
+        });
+        transcription.id = saved._id.toString();
+        log.info(`Transcription saved to DB: ${saved._id}`);
+      } catch (dbErr) {
+        log.warn('Failed to save transcription to DB:', dbErr);
+      }
+    }
 
     return transcription;
   } catch (error) {
@@ -206,6 +232,7 @@ function getMimeType(filePath: string): string {
 export async function transcribeYouTube(
   url: string,
   targetLang?: string,
+  userId?: string,
 ): Promise<TranscriptionResponse> {
   log.info(`Starting YouTube transcription for: ${url} (Translation: ${targetLang || 'none'})`);
 
@@ -251,6 +278,31 @@ export async function transcribeYouTube(
       createdAt: new Date().toISOString(),
       youtube: result.youtube,
     };
+
+    // Persist to MongoDB if userId is provided (authenticated request)
+    if (userId) {
+      try {
+        const saved = await Transcription.create({
+          userId,
+          title: result.youtube?.title || `YouTube - ${url}`,
+          originalText: result.text.trim(),
+          translatedText: translatedTranscript,
+          sourceUrl: result.youtube?.url || url,
+          duration: result.duration,
+          language: result.language,
+          segments: result.segments.map(seg => ({
+            start: seg.start,
+            end: seg.end,
+            text: seg.text.trim(),
+            confidence: seg.avg_logprob,
+          })),
+        });
+        transcription.id = saved._id.toString();
+        log.info(`YouTube transcription saved to DB: ${saved._id}`);
+      } catch (dbErr) {
+        log.warn('Failed to save YouTube transcription to DB:', dbErr);
+      }
+    }
 
     return transcription;
   } catch (error) {

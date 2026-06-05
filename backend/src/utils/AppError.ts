@@ -32,6 +32,10 @@ export class AppError extends Error {
     return new AppError(message, 404, 'NOT_FOUND');
   }
 
+  static forbidden(message: string = 'Access denied') {
+    return new AppError(message, 403, 'FORBIDDEN');
+  }
+
   static tooLarge(message: string = 'File too large') {
     return new AppError(message, 413, 'FILE_TOO_LARGE');
   }

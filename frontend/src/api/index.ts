@@ -18,6 +18,15 @@ const apiClient = axios.create({
   },
 });
 
+// Attach JWT token to every request if available
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('es_token');
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 /**
  * Upload audio file for transcription.
  *
@@ -137,3 +146,103 @@ export async function transcribeYouTube(
 }
 
 export default apiClient;
+
+// ============ Dictation / Lesson Management API ============
+
+export interface LessonSummary {
+  _id: string;
+  title: string;
+  sourceUrl?: string;
+  duration: number;
+  language: string;
+  totalSegments: number;
+  currentSegment: number;
+  completed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DictationSegment {
+  start: number;
+  end: number;
+  text: string;
+  confidence?: number;
+}
+
+export interface DictationProgressData {
+  currentSegmentIndex: number;
+  completed: boolean;
+  hintsUsedCount: number;
+  incorrectAttempts: number;
+  lastActiveAt: string;
+}
+
+export interface DictationWorkspaceData {
+  transcription: {
+    _id: string;
+    title: string;
+    sourceUrl?: string;
+    duration: number;
+    language: string;
+    segments: DictationSegment[];
+  };
+  progress: DictationProgressData;
+}
+
+/** Get all lessons for the current user */
+export async function getLessons(): Promise<LessonSummary[]> {
+  try {
+    const response = await apiClient.get<ApiResponse<LessonSummary[]>>('/transcriptions');
+    return response.data.data;
+  } catch (error) {
+    throw parseApiError(error);
+  }
+}
+
+/** Rename a lesson */
+export async function renameLesson(id: string, title: string): Promise<void> {
+  try {
+    await apiClient.put(`/transcriptions/${id}`, { title });
+  } catch (error) {
+    throw parseApiError(error);
+  }
+}
+
+/** Delete a lesson */
+export async function deleteLesson(id: string): Promise<void> {
+  try {
+    await apiClient.delete(`/transcriptions/${id}`);
+  } catch (error) {
+    throw parseApiError(error);
+  }
+}
+
+/** Get dictation progress and segments for a lesson */
+export async function getDictationProgress(transcriptionId: string): Promise<DictationWorkspaceData> {
+  try {
+    const response = await apiClient.get<ApiResponse<DictationWorkspaceData>>(
+      `/dictation/progress/${transcriptionId}`,
+    );
+    return response.data.data;
+  } catch (error) {
+    throw parseApiError(error);
+  }
+}
+
+/** Update dictation progress */
+export async function updateDictationProgress(body: {
+  transcriptionId: string;
+  currentSegmentIndex?: number;
+  hintsUsed?: boolean;
+  incorrectAttempt?: boolean;
+}): Promise<DictationProgressData> {
+  try {
+    const response = await apiClient.post<ApiResponse<DictationProgressData>>(
+      '/dictation/progress',
+      body,
+    );
+    return response.data.data;
+  } catch (error) {
+    throw parseApiError(error);
+  }
+}

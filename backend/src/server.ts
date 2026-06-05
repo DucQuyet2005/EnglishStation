@@ -42,7 +42,7 @@ app.use(helmet());
 // CORS: Allow frontend to communicate with backend
 app.use(cors({
   origin: config.allowedOrigins,
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 86400, // Cache preflight for 24 hours
 }));
