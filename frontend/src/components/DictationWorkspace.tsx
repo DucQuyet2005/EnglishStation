@@ -389,6 +389,26 @@ export function DictationWorkspace({ lessonId, onBack }: DictationWorkspaceProps
   }
 
   const displayChars = buildDisplayChars();
+
+  // Group chars into words for rendering so they wrap correctly
+  const displayWords: { isSpace: boolean; chars: (typeof displayChars[0] & { index: number })[] }[] = [];
+  let currentWord: (typeof displayChars[0] & { index: number })[] = [];
+
+  displayChars.forEach((ch, i) => {
+    if (ch.isSpace) {
+      if (currentWord.length > 0) {
+        displayWords.push({ isSpace: false, chars: currentWord });
+        currentWord = [];
+      }
+      displayWords.push({ isSpace: true, chars: [{ ...ch, index: i }] });
+    } else {
+      currentWord.push({ ...ch, index: i });
+    }
+  });
+  if (currentWord.length > 0) {
+    displayWords.push({ isSpace: false, chars: currentWord });
+  }
+
   const progressPct = Math.round((segmentIndex / segments.length) * 100);
 
   return (
@@ -463,22 +483,33 @@ export function DictationWorkspace({ lessonId, onBack }: DictationWorkspaceProps
 
         {/* Character display */}
         <div className={`dw__chars ${hasError ? 'dw__chars--shake' : ''}`} key={shakeKey}>
-          {displayChars.map((ch, i) => {
-            // Check if this char's word is the active word
-            const activeWordIdx = getActiveWordIndex(
-              Math.min(userInput.length, normalizedAnswer.length - 1),
-              wordBoundaries
-            );
-            const charWordIdx = getActiveWordIndex(i, wordBoundaries);
-            const isActiveWord = charWordIdx === activeWordIdx && ch.state !== 'correct';
+          {displayWords.map((word, wIdx) => {
+            let isWordActive = false;
+            if (!word.isSpace && word.chars.length > 0) {
+              const firstCharIdx = word.chars[0].index;
+              const activeWordIdx = getActiveWordIndex(
+                Math.min(userInput.length, normalizedAnswer.length - 1),
+                wordBoundaries
+              );
+              const charWordIdx = getActiveWordIndex(firstCharIdx, wordBoundaries);
+              // A word is active if it's the current typing word and contains uncompleted chars
+              isWordActive = charWordIdx === activeWordIdx && word.chars.some(c => c.state !== 'correct');
+            }
 
             return (
-              <span
-                key={i}
-                className={`dw__char dw__char--${ch.state} ${ch.isSpace ? 'dw__char--space' : ''} ${isActiveWord ? 'dw__char--active-word' : ''}`}
+              <div 
+                key={wIdx} 
+                className={`dw__word ${word.isSpace ? 'dw__word--space' : ''} ${isWordActive ? 'dw__word--active' : ''}`}
               >
-                {ch.isSpace ? '\u00A0' : ch.char}
-              </span>
+                {word.chars.map((ch) => (
+                  <span
+                    key={ch.index}
+                    className={`dw__char dw__char--${ch.state} ${ch.isSpace ? 'dw__char--space' : ''}`}
+                  >
+                    {ch.isSpace ? '\u00A0' : ch.char}
+                  </span>
+                ))}
+              </div>
             );
           })}
         </div>

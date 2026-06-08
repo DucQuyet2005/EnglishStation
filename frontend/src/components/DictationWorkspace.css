@@ -262,11 +262,26 @@
 .dw__chars {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: 12px 6px; /* 12px vertical gap between lines, 6px horizontal gap between words */
   min-height: 60px;
   align-items: center;
   padding: 0.5rem 0;
   line-height: 2.2;
+}
+
+.dw__word {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0; /* Xóa khoảng trống giữa các chữ cái để dính sát vào nhau */
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.dw__word--active {
+  border-bottom: 2px dashed rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 6px -2px rgba(99, 102, 241, 0.1);
+  padding-bottom: 2px;
+  margin-bottom: -4px;
 }
 
 /* Shake animation */
@@ -284,7 +299,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.2em;
+  width: 0.6em; /* Đúng bằng chiều rộng chuẩn của font Monospace để các chữ liền mạch */
   height: 1.8em;
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
   font-size: 1.15rem;
@@ -294,7 +309,7 @@
 }
 
 .dw__char--space {
-  width: 0.6em;
+  width: 0.3em; /* Thu hẹp không gian khoảng trắng gốc vì đã có gap giữa các từ */
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -345,11 +360,7 @@
   color: rgba(160, 160, 200, 0.2);
 }
 
-/* Active word highlight (glow underline) */
-.dw__char--active-word:not(.dw__char--space) {
-  border-bottom: 2px dashed rgba(99, 102, 241, 0.3);
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.08);
-}
+/* Active word highlight is now handled by .dw__word--active */
 
 /* ---- Hidden Input ---- */
 .dw__input {
