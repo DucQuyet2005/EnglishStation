@@ -1,37 +1,77 @@
 # ============================================
-# EnglishStation - Docker Compose
+# EnglishStation - Docker Compose (Production-Parity)
 # ============================================
-# Orchestrates all three services:
-# 1. frontend  - React app served by Nginx (port 80)
+# Orchestrates all services:
+# 1. frontend  - React SPA served by Nginx (port 3000 -> 80)
 # 2. backend   - Express API on Bun runtime (port 3001)
 # 3. whisper   - Python FastAPI + faster-whisper (port 8000)
+# 4. mongodb   - MongoDB 7 database engine (port 27017)
 #
 # Network: All services communicate via 'english-station-network'
-# The frontend proxies /api/* to the backend via Nginx.
-# The backend forwards audio files to the whisper service.
+# The frontend reverse proxies /api/* directly to the backend container via Nginx.
+# The backend forwards audio files to the whisper service container and saves data to mongodb.
 #
 # Usage:
-#   docker-compose up --build        # Build and start all services
-#   docker-compose up -d             # Start in background
-#   docker-compose down              # Stop all services
-#   docker-compose logs -f whisper   # Follow whisper service logs
+#   docker compose up --build -d              # Build and start all services in background
+#   docker compose up -d whisper mongodb      # Start only AI & Database (for local dev)
+#   docker compose ps                         # Check health status of all containers
+#   docker compose logs -f [service]          # Follow logs (frontend/backend/whisper/mongodb)
+#   docker compose down                       # Stop and remove containers
 # ============================================
 
 services:
-  # ---- Frontend (React + Nginx) ----
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: es-frontend
+  # ---- Database (MongoDB) ----
+  mongodb:
+    image: mongo:7
+    container_name: es-mongodb
     ports:
-      - "3000:80"
-    depends_on:
-      backend:
-        condition: service_healthy
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=englishstation
+    volumes:
+      - mongodb-data:/data/db
     networks:
       - english-station-network
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---- Whisper Service (Python + FastAPI) ----
+  whisper:
+    build:
+      context: ./whisper-service
+      dockerfile: Dockerfile
+    container_name: es-whisper
+    ports:
+      - "8000:8000"
+    environment:
+      - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-base}
+      - WHISPER_DEVICE=${WHISPER_DEVICE:-cpu}
+      - WHISPER_COMPUTE_TYPE=${WHISPER_COMPUTE_TYPE:-int8}
+      - WHISPER_HOST=0.0.0.0
+      - WHISPER_PORT=8000
+      - MAX_AUDIO_DURATION=${MAX_AUDIO_DURATION:-120}
+      - MAX_YOUTUBE_DURATION=${MAX_YOUTUBE_DURATION:-600}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - whisper-models:/home/whisperuser/.cache/huggingface
+    networks:
+      - english-station-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
 
   # ---- Backend (Express + Bun) ----
   backend:
@@ -45,14 +85,20 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - WHISPER_SERVICE_URL=http://whisper:8000
-      - MAX_FILE_SIZE_MB=10
-      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/englishstation}
+      - JWT_SECRET=${JWT_SECRET:-englishstation_secret_change_in_production}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-10}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
       - UPLOAD_DIR=./uploads
-      - RATE_LIMIT_WINDOW_MS=60000
-      - RATE_LIMIT_MAX_REQUESTS=30
-      - LOG_LEVEL=combined
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-60000}
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-30}
+      - LOG_LEVEL=${LOG_LEVEL:-combined}
     depends_on:
       whisper:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
     volumes:
       - backend-uploads:/app/uploads
@@ -66,39 +112,23 @@ services:
       start_period: 10s
       retries: 3
 
-  # ---- Whisper Service (Python + FastAPI) ----
-  whisper:
+  # ---- Frontend (React + Nginx) ----
+  frontend:
     build:
-      context: ./whisper-service
+      context: ./frontend
       dockerfile: Dockerfile
-    container_name: es-whisper
+      args:
+        - VITE_API_URL=/api
+        - VITE_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+    container_name: es-frontend
     ports:
-      - "8000:8000"
-    environment:
-      - WHISPER_MODEL_SIZE=base
-      - WHISPER_DEVICE=cpu
-      - WHISPER_COMPUTE_TYPE=int8
-      - WHISPER_HOST=0.0.0.0
-      - WHISPER_PORT=8000
-      - MAX_AUDIO_DURATION=120
-      - MAX_YOUTUBE_DURATION=600
-      - LOG_LEVEL=info
-    volumes:
-      - whisper-models:/home/whisperuser/.cache/huggingface
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
     networks:
       - english-station-network
     restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
-      interval: 30s
-      timeout: 10s
-      start_period: 120s
-      retries: 3
-    # Allocate more memory for Whisper model
-    deploy:
-      resources:
-        limits:
-          memory: 2G
 
 # ---- Shared Network ----
 networks:
@@ -110,4 +140,6 @@ volumes:
   backend-uploads:
     driver: local
   whisper-models:
+    driver: local
+  mongodb-data:
     driver: local

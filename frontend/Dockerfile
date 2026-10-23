@@ -8,6 +8,12 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# Accept build arguments for Vite
+ARG VITE_API_URL=/api
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+
 # Copy package files
 COPY package.json package-lock.json* ./
 RUN npm install
@@ -18,6 +24,9 @@ RUN npm run build
 
 # ---- Stage 2: Serve with Nginx ----
 FROM nginx:alpine AS production
+
+# Install curl for healthcheck
+RUN apk add --no-cache curl
 
 # Copy custom Nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf

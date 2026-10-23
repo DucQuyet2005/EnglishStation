@@ -53,7 +53,7 @@ export const config = {
   logLevel: process.env.LOG_LEVEL || 'dev',
 
   // Database
-  mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/english_station',
+  mongodbUri: process.env.MONGODB_URI || process.env.MONGO_URL || 'mongodb://localhost:27017/english_station',
 
   // JWT
   jwtSecret: process.env.JWT_SECRET || 'fallback_secret_change_me',
